@@ -19,10 +19,14 @@ const int motor_A_IN2 = 7;
 const int motor_B_IN3 = 4; 
 const int motor_B_IN4 = 5; 
 const int motor_A_EN = 9; 
-const int motor_B_EN = 3; 
+const int motor_B_EN = 4; 
 
 // LED Pin
-const int LED_Pin = 2;
+const int LED_Pin = 3;
+
+// BUtton Pin
+const int button_Pin = 10;
+int lastButtonState = HIGH;
 
 int currentSpeed = 255;  
 
@@ -30,6 +34,8 @@ int currentSpeed = 255;
 int ir_ice_detected = 0;
 int ir_no_ice_detected = 0;
 int calibrationStep = 0;
+
+
 
 void setup() {
   Serial.begin(9600);
@@ -49,6 +55,9 @@ void setup() {
   // Initialize LED pin
   pinMode(LED_Pin, OUTPUT);
   
+  // Initialize Button Pin
+  pinMode(button_Pin, INPUT_PULLUP);
+
   Serial.println("System Initialized. Starting CALIBRATION.");
 }
 
@@ -72,43 +81,52 @@ void loop() {
 // --- State Handler Functions ---
 
 void handleCalibration() {
-  // 1. Check if there is data coming in from the Serial Monitor
-  if (Serial.available() > 0) {
+  
+  // 1. Continuously grab the current sensor average
+  int currentAvg = (analogRead(ir_Sensor_Pin1) + analogRead(ir_Sensor_Pin2)) / 2;
+
+  // 2. Print the live values every 250ms (Non-blocking)
+  if (calibrationStep == 0) {
+    Serial.print("Step 0 (ICE) Live Reading: ");
+  } else if (calibrationStep == 1) {
+    Serial.print("Step 1 (NO ICE) Live Reading: ");
+  }
+
+  // 3. Read the button to see if the user wants to lock in the reading
+  int currentButtonState = digitalRead(button_Pin);
+
+  // 4. Check for a button press (falling edge: HIGH to LOW)
+  if (lastButtonState == HIGH && currentButtonState == LOW) {
     
-    // Read the incoming keystroke
-    char incomingChar = Serial.read(); 
-
-    // 2. Check if the key pressed was 'Enter' (\n or \r)
-    if (incomingChar == '\n' || incomingChar == '\r') {
+    delay(50); // Debounce the physical button
+    
+    // --- STEP 0: Lock in the ICE reading ---
+    if (calibrationStep == 0) {
+      ir_ice_detected = currentAvg; // Save the live reading
       
-      // --- STEP 0: Take the ICE reading ---
-      if (calibrationStep == 0) {
-        Serial.println("Press Enter to calibrate IR for ice.");
-
-        ir_ice_detected = (analogRead(ir_Sensor_Pin1) + analogRead(ir_Sensor_Pin1)) / 2;
-          
-        Serial.print("Ice reading taken: ");
-        Serial.println(ir_ice_detected);
-        Serial.println("Please remove the ice and press Enter again...");
-        
-        calibrationStep = 1; // Advance to the next step
-      }
-        
-        // --- STEP 1: Take the NO ICE reading ---
-      else if (calibrationStep == 1) {
-        Serial.println("Press Enter to calibrate IR for no ice.");
-
-        ir_no_ice_detected = (analogRead(ir_Sensor_Pin1) + analogRead(ir_Sensor_Pin1)) / 2;
-          
-        Serial.print("No Ice reading taken: ");
-        Serial.println(ir_no_ice_detected); 
-
-          // 3. Both readings are done! Transition to the next state
-        Serial.println("Calibration complete. Transitioning to DRIVE.");
-        currentState = DRIVE;
-      }
+      Serial.print("\n>>> ICE reading LOCKED at: ");
+      Serial.println(ir_ice_detected);
+      Serial.println(">>> Please remove the ice. Press button to lock NO ICE reading...\n");
+      
+      delay(1000); // 1-second pause so the user has time to release the button
+      calibrationStep = 1; // Advance to the next step
+    }
+      
+    // --- STEP 1: Lock in the NO ICE reading ---
+    else if (calibrationStep == 1) {
+      ir_no_ice_detected = currentAvg; // Save the live reading
+      
+      Serial.print("\n>>> NO ICE reading LOCKED at: ");
+      Serial.println(ir_no_ice_detected); 
+      Serial.println(">>> Calibration complete! Transitioning to DRIVE.\n");
+      
+      delay(1000); // 1-second pause before driving
+      currentState = DRIVE;
     }
   }
+
+  // Save the current state so we can compare it next loop iteration
+  lastButtonState = currentButtonState;
 }
 
 void handleDrive() {
