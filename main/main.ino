@@ -21,6 +21,8 @@ const int motor_B_IN4 = 10;
 const int motor_A_EN = 11; 
 const int motor_B_EN = 12; 
 
+int currentSpeed = 255;  
+
 // Threshold Values
 const int ir_ice_detected = 0;
 const int ir_no_ice_detected = 0;
@@ -119,8 +121,10 @@ void handleDrive() {
 
 void handleBrake() {
   // 1. Output commands to stop the motors
-  // ... your braking code here ...
-  
+  setMotors(currentSpeed, 0, currentSpeed, 0);
+  delay(100);
+  stopMotors();
+  delay(100);  
 
   // 2. Read the IR sensor to check if it's safe to move again
   int irValue1 = analogRead(ir_Sensor_Pin1); // Use analogRead() if it's an analog sensor
@@ -134,4 +138,24 @@ void handleBrake() {
     Serial.println("Path clear. Transitioning back to DRIVE.");
     currentState = DRIVE;
   }
+}
+
+void setMotors(int a1, int a2, int b3, int b4) {
+  digitalWrite(MOTOR_A_EN, HIGH);
+  digitalWrite(MOTOR_B_EN, HIGH);
+  analogWrite(MOTOR_A_IN1, a1);
+  analogWrite(MOTOR_A_IN2, a2);
+  analogWrite(MOTOR_B_IN3, b3);
+  analogWrite(MOTOR_B_IN4, b4);
+}
+
+void stopMotors() {
+  analogWrite(MOTOR_A_IN1, 0);
+  analogWrite(MOTOR_A_IN2, 0);
+  analogWrite(MOTOR_B_IN3, 0);
+  analogWrite(MOTOR_B_IN4, 0);
+  digitalWrite(MOTOR_A_EN, LOW);
+  digitalWrite(MOTOR_B_EN, LOW);
+  motorAState = M_STOPPED;
+  motorBState = M_STOPPED;
 }
