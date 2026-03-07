@@ -22,8 +22,9 @@ const int motor_A_EN = 11;
 const int motor_B_EN = 12; 
 
 // Threshold Values
-const int ir_ice_detected = 950;
-const int ir_no_ice_detected = 50;
+const int ir_ice_detected = 0;
+const int ir_no_ice_detected = 0;
+int calibrationStep = 0;
 
 void setup() {
   Serial.begin(9600);
@@ -63,16 +64,38 @@ void loop() {
 // --- State Handler Functions ---
 
 void handleCalibration() {
-  // 1. Execute calibration routine (e.g., spinning to find line, reading ambient light)
-  // ... your calibration code here ...
+  // 1. Check if there is data coming in from the Serial Monitor
+  if (Serial.available() > 0) {
+    
+    // Read the incoming keystroke
+    char incomingChar = Serial.read(); 
 
-  // 2. Check if calibration is finished
-  bool isCalibrationDone = true; // Replace with your actual completion condition
+    // 2. Check if the key pressed was 'Enter' (\n or \r)
+    if (incomingChar == '\n' || incomingChar == '\r') {
+      
+      // --- STEP 0: Take the ICE reading ---
+      if (calibrationStep == 0) {
+        ir_ice_detected = (analogRead(ir_Sensor_Pin1) + analogRead(ir_Sensor_Pin1)) / 2;
+          
+        Serial.print("Ice reading taken: ");
+        Serial.println(ir_ice_detected);
+        Serial.println("Please remove the ice and press Enter again...");
+        
+        calibrationStep = 1; // Advance to the next step
+      }
+        
+        // --- STEP 1: Take the NO ICE reading ---
+      else if (calibrationStep == 1) {
+        ir_no_ice_detected = (analogRead(ir_Sensor_Pin1) + analogRead(ir_Sensor_Pin1)) / 2;
+          
+        Serial.print("No Ice reading taken: ");
+        Serial.println(ir_no_ice_detected); // (Note: I fixed a small typo from your code here)
 
-  // 3. Transition to the next state
-  if (isCalibrationDone) {
-    Serial.println("Calibration complete. Transitioning to DRIVE.");
-    currentState = DRIVE;
+          // 3. Both readings are done! Transition to the next state
+        Serial.println("Calibration complete. Transitioning to DRIVE.");
+        currentState = DRIVE;
+      }
+    }
   }
 }
 
