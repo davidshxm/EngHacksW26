@@ -21,6 +21,9 @@ const int motor_B_IN4 = 10;
 const int motor_A_EN = 11; 
 const int motor_B_EN = 12; 
 
+// Threshold Values
+const int ir_ice_detected = 950;
+const int ir_no_ice_detected = 50;
 
 void setup() {
   Serial.begin(9600);
@@ -78,11 +81,14 @@ void handleDrive() {
   // ... your motor driving code here ...
 
   // 2. Read the IR sensor
-  int irReading = digitalRead(irSensorPin); // Use analogRead() if it's an analog sensor
+  int irValue1 = analogRead(ir_Sensor_Pin1); // Use analogRead() if it's an analog sensor
+  int irValue2 = analogRead(ir_Sensor_Pin2)
+
+  int irAverage = (irValue1 + irValue2)/2
 
   // 3. Check for trigger condition (e.g., obstacle detected or line lost)
   // Assuming HIGH means a trigger condition was met
-  if (irReading == HIGH) {
+  if (irAverage >= (ir_ice_detected - 50) && irAverage <= (ir_ice_detected + 50)) {
     Serial.println("Trigger detected. Transitioning to BRAKE.");
     currentState = BRAKE;
   }
@@ -91,13 +97,17 @@ void handleDrive() {
 void handleBrake() {
   // 1. Output commands to stop the motors
   // ... your braking code here ...
+  
 
   // 2. Read the IR sensor to check if it's safe to move again
-  int irReading = digitalRead(irSensorPin);
+  int irValue1 = analogRead(ir_Sensor_Pin1); // Use analogRead() if it's an analog sensor
+  int irValue2 = analogRead(ir_Sensor_Pin2)
+
+  int irAverage = (irValue1 + irValue2)/2
 
   // 3. Check if the trigger condition has cleared
   // Assuming LOW means the path is clear
-  if (irReading == LOW) {
+  if (irAverage >= (ir_no_ice_detected - 50) && irAverage <= (ir_no_ice_detected + 50)) {
     Serial.println("Path clear. Transitioning back to DRIVE.");
     currentState = DRIVE;
   }
