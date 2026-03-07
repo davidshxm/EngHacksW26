@@ -9,16 +9,33 @@ enum SystemState {
 SystemState currentState = CALIBRATION;
 
 // 2. Define your pins
-const int irSensorPin = 2; // Example IR sensor pin
-const int irSesnsorPin2 = 3; // Example second IR sensor pin
-// Add your motor control pins here...
+// IR Pins
+const int ir_Sensor_Pin1 = A0; 
+const int ir_Sensor_Pin2 = A1; 
+
+// Motor Pins
+const int motor_A_IN1 = 5; 
+const int motor_A_IN2 = 6; 
+const int motor_B_IN3 = 9; 
+const int motor_B_IN4 = 10; 
+const int motor_A_EN = 11; 
+const int motor_B_EN = 12; 
+
 
 void setup() {
   Serial.begin(9600);
   
-  // Initialize pins
-  pinMode(irSensorPin, INPUT);
-  // pinMode(motorPin, OUTPUT);
+  // Initialize IR pins
+  pinMode(ir_Sensor_Pin1, INPUT);
+  pinMode(ir_Sensor_Pin2, INPUT);
+
+  // Initialize Motor pins
+  pinMode(motor_A_IN1, OUTPUT);
+  pinMode(motor_A_IN2, OUTPUT);
+  pinMode(motor_B_IN3, OUTPUT);
+  pinMode(motor_B_IN4, OUTPUT);
+  pinMode(motor_A_EN, OUTPUT);
+  pinMode(motor_B_EN, OUTPUT);
   
   Serial.println("System Initialized. Starting CALIBRATION.");
 }
