@@ -16,17 +16,16 @@ const int ir_Sensor_Pin2 = A1;
 // Motor Pins
 const int motor_A_IN1 = 8; 
 const int motor_A_IN2 = 7; 
-const int motor_B_IN3 = 4; 
-const int motor_B_IN4 = 5; 
+const int motor_B_IN3 = 5; 
+const int motor_B_IN4 = 6; 
 const int motor_A_EN = 9; 
 const int motor_B_EN = 4; 
 
 // LED Pin
-const int LED_Pin = 3;
+const int LED_Pin = 2;
 
 // BUtton Pin
-const int button_Pin = 10;
-int ButtonState = HIGH;
+const int button_Pin = 3;
 
 int currentSpeed = 255;  
 
@@ -54,7 +53,7 @@ void setup() {
   pinMode(LED_Pin, OUTPUT);
   
   // Initialize Button Pin
-  pinMode(button_Pin, INPUT_PULLUP);
+  pinMode(button_Pin, INPUT);
 
   Serial.println("System Initialized. Starting CALIBRATION.");
 }
@@ -101,9 +100,6 @@ void handleCalibration() {
   while (digitalRead(button_Pin) == LOW) {
     // Do nothing, just wait for the user to lift their finger
   }
-  
-  delay(200); // Give the user 200ms to clear their hand before starting Step 2
-
 
   // --- STEP 2: NO ICE READING ---
   Serial.println("Setting NO ICE Live Value. Press button to lock in.");
@@ -140,19 +136,19 @@ void handleDrive() {
   int irValue2 = analogRead(ir_Sensor_Pin2);
 
   int irAverage = (irValue1 + irValue2)/2;
+  Serial.print(irAverage);
+  Serial.print(" - ");
+  Serial.println(ir_no_ice_detected);
 
   // 3. Check for trigger condition (e.g., obstacle detected or line lost)
   // Assuming HIGH means a trigger condition was met
-  if (irAverage >= (ir_ice_detected - 50) && irAverage <= (ir_ice_detected + 50)) {
+  if (irAverage >= (ir_ice_detected - 200) && irAverage <= (ir_ice_detected + 200)) {
     Serial.println("Trigger detected. Transitioning to BRAKE.");
     currentState = BRAKE;
   }
 
-  // Read the incoming keystroke
-  char incomingChar = Serial.read(); 
-
   // Check if the key pressed was 'Enter' (\n or \r)
-  if (ButtonState == LOW) {
+  if (digitalRead(button_Pin) == LOW) {
     // Reset the program
     Serial.println("Resetting program. Returning to Calibration.");
     calibrationStep = 0;
@@ -168,17 +164,20 @@ void handleBrake() {
   setMotors(currentSpeed, 0, currentSpeed, 0);
   delay(100);
   stopMotors();
-  delay(100);
+  delay(300);
 
   // 2. Read the IR sensor to check if it's safe to move again
   int irValue1 = analogRead(ir_Sensor_Pin1);
   int irValue2 = analogRead(ir_Sensor_Pin2);
 
   int irAverage = (irValue1 + irValue2)/2;
+  Serial.print(irAverage);
+  Serial.print(" - ");
+  Serial.println(ir_ice_detected);
 
   // 3. Check if the trigger condition has cleared
   // Assuming LOW means the path is clear
-  if (irAverage >= (ir_no_ice_detected - 50) && irAverage <= (ir_no_ice_detected + 50)) {
+  if (irAverage >= (ir_no_ice_detected - 200) && irAverage <= (ir_no_ice_detected + 200)) {
     Serial.println("Path clear. Transitioning back to DRIVE.");
     currentState = DRIVE;
   }
