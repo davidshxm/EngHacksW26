@@ -26,7 +26,7 @@ const int LED_Pin = 3;
 
 // BUtton Pin
 const int button_Pin = 10;
-int lastButtonState = HIGH;
+int ButtonState = HIGH;
 
 int currentSpeed = 255;  
 
@@ -34,8 +34,6 @@ int currentSpeed = 255;
 int ir_ice_detected = 0;
 int ir_no_ice_detected = 0;
 int calibrationStep = 0;
-
-
 
 void setup() {
   Serial.begin(9600);
@@ -81,52 +79,55 @@ void loop() {
 // --- State Handler Functions ---
 
 void handleCalibration() {
+  int currentAvg = 0;
+
+  // --- STEP 1: ICE READING ---
+  Serial.println("Setting ICE Live Value. Press button to lock in.");
   
-  // 1. Continuously grab the current sensor average
-  int currentAvg = (analogRead(ir_Sensor_Pin1) + analogRead(ir_Sensor_Pin2)) / 2;
+  // The loop actively checks the physical pin every time it repeats
+  while (digitalRead(button_Pin) != LOW) {
+    currentAvg = (analogRead(ir_Sensor_Pin1) + analogRead(ir_Sensor_Pin2)) / 2;
+  }
+  
+  ir_ice_detected = currentAvg; // Save the reading
+  calibrationStep = 1;
+  Serial.print("ICE value locked! Value is: ");
+  Serial.println(ir_ice_detected);
 
-  // 2. Print the live values every 250ms (Non-blocking)
-  if (calibrationStep == 0) {
-    Serial.print("Step 0 (ICE) Live Reading: ");
-  } else if (calibrationStep == 1) {
-    Serial.print("Step 1 (NO ICE) Live Reading: ");
+  // --- CRITICAL STEP: WAIT FOR RELEASE ---
+  delay(50); // Small delay to debounce the physical metal contacts
+  
+  // Trap the code here as long as the button is still being held down
+  while (digitalRead(button_Pin) == LOW) {
+    // Do nothing, just wait for the user to lift their finger
+  }
+  
+  delay(200); // Give the user 200ms to clear their hand before starting Step 2
+
+
+  // --- STEP 2: NO ICE READING ---
+  Serial.println("Setting NO ICE Live Value. Press button to lock in.");
+  
+  while (digitalRead(button_Pin) != LOW) {
+    currentAvg = (analogRead(ir_Sensor_Pin1) + analogRead(ir_Sensor_Pin2)) / 2;
+  }
+  
+  ir_no_ice_detected = currentAvg; // Save the reading
+  Serial.print("NO ICE value locked! Value is: ");
+  Serial.println(ir_no_ice_detected);
+
+  // --- CRITICAL STEP: WAIT FOR RELEASE (AGAIN) ---
+  delay(50); 
+  while (digitalRead(button_Pin) == LOW) {
+    // Wait for release again so we don't accidentally trigger something in DRIVE
   }
 
-  // 3. Read the button to see if the user wants to lock in the reading
-  int currentButtonState = digitalRead(button_Pin);
 
-  // 4. Check for a button press (falling edge: HIGH to LOW)
-  if (lastButtonState == HIGH && currentButtonState == LOW) {
-    
-    delay(50); // Debounce the physical button
-    
-    // --- STEP 0: Lock in the ICE reading ---
-    if (calibrationStep == 0) {
-      ir_ice_detected = currentAvg; // Save the live reading
-      
-      Serial.print("\n>>> ICE reading LOCKED at: ");
-      Serial.println(ir_ice_detected);
-      Serial.println(">>> Please remove the ice. Press button to lock NO ICE reading...\n");
-      
-      delay(1000); // 1-second pause so the user has time to release the button
-      calibrationStep = 1; // Advance to the next step
-    }
-      
-    // --- STEP 1: Lock in the NO ICE reading ---
-    else if (calibrationStep == 1) {
-      ir_no_ice_detected = currentAvg; // Save the live reading
-      
-      Serial.print("\n>>> NO ICE reading LOCKED at: ");
-      Serial.println(ir_no_ice_detected); 
-      Serial.println(">>> Calibration complete! Transitioning to DRIVE.\n");
-      
-      delay(1000); // 1-second pause before driving
-      currentState = DRIVE;
-    }
+  // --- STEP 3: TRANSITION ---
+  if (calibrationStep == 1) {
+    Serial.println("Calibration complete. Transitioning to DRIVE.");
+    currentState = DRIVE;
   }
-
-  // Save the current state so we can compare it next loop iteration
-  lastButtonState = currentButtonState;
 }
 
 void handleDrive() {
@@ -151,11 +152,12 @@ void handleDrive() {
   char incomingChar = Serial.read(); 
 
   // Check if the key pressed was 'Enter' (\n or \r)
-  if (incomingChar == '\n' || incomingChar == '\r') {
+  if (ButtonState == LOW) {
     // Reset the program
     Serial.println("Resetting program. Returning to Calibration.");
     calibrationStep = 0;
     currentState = CALIBRATION;
+    delay(250);
   }
 }
 
